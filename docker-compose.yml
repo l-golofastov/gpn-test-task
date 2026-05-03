@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: gpn
+      POSTGRES_USER: gpn
+      POSTGRES_PASSWORD: gpn
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gpn -d gpn"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  password-service:
+    build:
+      context: .
+      args:
+        PROJECT_ID: passwordService
+        MODULE_DIR: password-service
+    environment:
+      PASSWORD_HTTP_HOST: 0.0.0.0
+      PASSWORD_HTTP_PORT: 8081
+      DB_JDBC_URL: jdbc:postgresql://postgres:5432/gpn
+      DB_USER: gpn
+      DB_PASSWORD: gpn
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  url-downloader-service:
+    build:
+      context: .
+      args:
+        PROJECT_ID: urlDownloaderService
+        MODULE_DIR: url-downloader-service
+    environment:
+      URL_DOWNLOADER_SERVER_HOST: 0.0.0.0
+      URL_DOWNLOADER_SERVER_PORT: 8082
+      URL_DOWNLOADER_PATH: /data/stackoverflow
+      URL_DOWNLOADER_PAGES: 2
+      URL_DOWNLOADER_PAGE_SIZE: 10
+      URL_DOWNLOADER_SORT: activity
+      URL_DOWNLOADER_ORDER: desc
+      URL_DOWNLOADER_MAX_PARALLEL: 2
+    ports:
+      - "8082:8082"
+    volumes:
+      - downloader-data:/data/stackoverflow
+
+  scheduler-service:
+    build:
+      context: .
+      args:
+        PROJECT_ID: schedulerService
+        MODULE_DIR: scheduler-service
+    environment:
+      SCHEDULER_HTTP_HOST: 0.0.0.0
+      SCHEDULER_HTTP_PORT: 8083
+      DB_JDBC_URL: jdbc:postgresql://postgres:5432/gpn
+      DB_USERNAME: gpn
+      DB_PASSWORD: gpn
+      SCHEDULER_GENERATE_INTERVAL_MS: 10000
+      SCHEDULER_SNAPSHOT_INTERVAL_MS: 15000
+      SCHEDULER_ITEMS_PER_TYPE: 3
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  downloader-data:

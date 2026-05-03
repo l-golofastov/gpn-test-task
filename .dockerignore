@@ -1,0 +1,7 @@
+.git
+.idea
+.bsp
+target
+modules/*/target
+project/target
+*.png
